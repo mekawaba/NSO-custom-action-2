@@ -1,0 +1,103 @@
+- hosts: 127.0.0.1
+  connection: local
+  vars:
+    nso_file: nso-6.5-freetrial.linux.x86_64
+    ios_ned: cisco-ios-cli-3.8
+    asa_ned: cisco-asa-cli-6.6
+    nso_dir: ~/NSO-6.5
+    run_dir: ~/ncsrun
+    files: NSO-6.5-free
+
+
+  tasks:
+  - name: create IOS NED symbolic link
+    shell: |
+      chdir={{run_dir}}/packages . && ln -s {{nso_dir}}/packages/neds/{{ios_ned}}
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: create ASA NED symbolic link
+    shell: |
+      chdir={{run_dir}}/packages . && ln -s {{nso_dir}}/packages/neds/{{asa_ned}}
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: package reload
+    shell: |
+      . {{nso_dir}}/ncsrc && ncs_cli -C -u admin << EOF
+      packages reload
+      EOF
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Create IOS Netsim Device
+    shell: |
+      cd {{run_dir}}
+      . {{nso_dir}}/ncsrc && ncs-netsim create-network packages/{{ios_ned}} 1 ios
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Create ASA Netsim Device
+    shell: |
+      cd {{run_dir}}
+      . {{nso_dir}}/ncsrc && ncs-netsim add-to-network packages/{{asa_ned}} 1 asa
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Start Netsim Devices
+    shell: |
+      cd {{run_dir}} 
+      . {{nso_dir}}/ncsrc && ncs-netsim start
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Create IOS Device Config
+    shell: |
+      cd {{run_dir}}
+      . {{nso_dir}}/ncsrc && ncs-netsim ncs-xml-init ios0 > netsim/ios0.xml
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Create ASA Device Config
+    shell: |
+      cd {{run_dir}}
+      . {{nso_dir}}/ncsrc && ncs-netsim ncs-xml-init asa0 > netsim/asa0.xml
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: load device
+    shell: |
+      cd {{run_dir}} 
+      . {{nso_dir}}/ncsrc && ncs_cli -C -u admin << EOF
+      confi t
+      load merge netsim/ios0.xml
+      load merge netsim/asa0.xml
+      commit
+      exit
+      exit
+      EOF
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: fetch SSH key
+    shell: |
+      . {{nso_dir}}/ncsrc && ncs_cli -C -u admin << EOF
+      devices fetch-ssh-host-keys 
+      exit
+      EOF
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+  - name: Sync device
+    shell: |
+      . {{nso_dir}}/ncsrc && ncs_cli -C -u admin << EOF
+      devices sync-from
+      exit
+      EOF
+    register: output
+  - debug: msg="{{output.stdout}}"
+
+
+
+ 
+
