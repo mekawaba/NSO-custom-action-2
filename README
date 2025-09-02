@@ -21,3 +21,6 @@ do them manually if you wish.
 The 'lux' test tool can be obtained from:
 
   https://github.com/hawk/lux.git
+
+For creating and registering Netsim devices to test, you can use the following command.
+ansible-playbook netsim.yml
